@@ -108,6 +108,140 @@ class SimpleEmailService
 	}
 
 	/**
+	* Lists the identities that have been verified and can be used as the 'From' address
+	*
+	* @param string $identityType The type of the identities to list. Possible values are "EmailAddress" and "Domain". If this parameter is omitted, 
+	* @return array An array containing two items: a list of verified identities, and the request id.
+	*/
+	public function listIdentities($identityType = null)
+	{
+		$rest = new SimpleEmailServiceRequest($this, 'GET');
+		$rest->setParameter('Action', 'ListIdentities');
+		
+		if($identityType){
+			$rest->setParameter('IdentityType', $identityType);
+		}
+
+		$rest = $rest->getResponse();
+		if($rest->error === false && $rest->code !== 200) {
+			$rest->error = array('code' => $rest->code, 'message' => 'Unexpected HTTP status');
+		}
+		if($rest->error !== false) {
+			$this->__triggerError('listIdentities', $rest->error);
+			return false;
+		}
+
+		$response = array();
+		if(!isset($rest->body)) {
+			return $response;
+		}
+
+		$identities = array();
+		foreach ($rest->body->ListIdentitiesResult->Identities->member as $identity) {
+			$identities[] = (string)$identity;
+		}
+
+		$response['Identities'] = $identities;
+		$response['RequestId'] = (string)$rest->body->ResponseMetadata->RequestId;
+
+		return $response;
+	}
+
+	/**
+	* Requests verification of the provided domain, so it can be used
+	* as the 'From' address when sending emails through SimpleEmailService.
+	*
+	* @param string $domain The domain to get verified
+	* @return array An array containing two items: A TXT record that must be placed in the DNS settings for the domain, in order to complete domain verification., and the request id.
+	*/
+	public function VerifyDomainIdentity($domain) {
+		$rest = new SimpleEmailServiceRequest($this, 'POST');
+		$rest->setParameter('Action', 'VerifyDomainIdentity');
+		$rest->setParameter('Domain', $domain);
+
+		$rest = $rest->getResponse();
+		if($rest->error === false && $rest->code !== 200) {
+			$rest->error = array('code' => $rest->code, 'message' => 'Unexpected HTTP status');
+		}
+		if($rest->error !== false) {
+			$this->__triggerError('VerifyDomainIdentity', $rest->error);
+			return false;
+		}
+
+		$response['VerificationToken'] = (string)$rest->body->VerifyDomainIdentityResult->VerificationToken ;
+		$response['RequestId'] = (string)$rest->body->ResponseMetadata->RequestId;
+
+		return $response;
+	}	
+
+	/**
+	* Requests DKIM tokens for a domain
+	*
+	* @param string $domain The domain to get verified
+	* @return array An array containing two items: DKIM Tokens for this website and the request id.
+	*/
+	public function VerifyDomainDkim($domain)
+	{
+		$rest = new SimpleEmailServiceRequest($this, 'POST');
+		$rest->setParameter('Action', 'VerifyDomainDkim');
+		$rest->setParameter('Domain', $domain);		
+
+		$rest = $rest->getResponse();
+
+		if($rest->error === false && $rest->code !== 200) {
+			$rest->error = array('code' => $rest->code, 'message' => 'Unexpected HTTP status');
+		}
+		if($rest->error !== false) {
+			$this->__triggerError('VerifyDomainIdentity', $rest->error);
+			return false;
+		}
+
+		$tokens = array();
+		foreach($rest->body->VerifyDomainDkimResult->DkimTokens->member as $member) {
+			$tokens[] = (string)$member;
+		}
+
+		$response['DkimTokens'] = $tokens;
+		$response['RequestId'] = (string)$rest->body->ResponseMetadata->RequestId;
+
+		return $response;
+	}
+
+
+	/**
+	* 
+	* Sets the Amazon Simple Notification Service (Amazon SNS) topic to which Amazon SES will publish bounce, complaint, and/or delivery notifications 
+	* for emails sent with that identity as the Source.
+	*
+	* @param string $identity : The identity for which the Amazon SNS topic will be set.
+	* @param string $topic : The Amazon Resource Name (ARN) of the Amazon SNS topic.
+	* @param string $type : The type of notifications that will be published to the specified Amazon SNS topic.
+	* @return array An array containing the request id.
+	*/
+	public function SetIdentityNotificationTopic($identity, $type = 'Delivery', $topic = null)
+	{
+		$rest = new SimpleEmailServiceRequest($this, 'POST');
+		$rest->setParameter('Action', 'SetIdentityNotificationTopic');
+		$rest->setParameter('Identity', $identity);	
+		$rest->setParameter('NotificationType', $type);	
+		$rest->setParameter('SnsTopic', $topic);	
+
+		$rest = $rest->getResponse();
+
+		if($rest->error === false && $rest->code !== 200) {
+			$rest->error = array('code' => $rest->code, 'message' => 'Unexpected HTTP status');
+		}
+		if($rest->error !== false) {
+			$this->__triggerError('VerifyDomainIdentity', $rest->error);
+			return false;
+		}
+
+		$response['RequestId'] = (string)$rest->body->ResponseMetadata->RequestId;
+
+		return $response;		
+	}
+
+	/**
 	* Lists the email addresses that have been verified and can be used as the 'From' address
 	*
 	* @return array An array containing two items: a list of verified email addresses, and the request id.
